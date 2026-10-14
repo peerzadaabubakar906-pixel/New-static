@@ -66,8 +66,11 @@ $('#go').onclick=async()=>{
   $('#go').disabled=true;$('#out').innerHTML='<p>Check ho raha hai...</p>';
   try{
     const r=await fetch('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({src:src,bio:$('#bio').checked,password:$('#pw').value})});
-    render(await r.json());
-  }catch(e){$('#out').innerHTML=card('ERROR','Server se connect nahi hua','<p>Internet check karein aur page dobara try karein.</p>')}
+    const t=await r.text();
+    let j=null;try{j=JSON.parse(t)}catch(_){}
+    if(j)render(j);
+    else $('#out').innerHTML=card('ERROR','Server ne galat jawab diya (HTTP '+r.status+')','<p>'+esc(t.slice(0,300))+'</p>');
+  }catch(e){$('#out').innerHTML=card('ERROR','Server se connect nahi hua','<p>'+esc(e.message)+'</p>')}
   $('#go').disabled=false;
 };
 $('#src').addEventListener('keydown',e=>{if(e.key==='Enter')$('#go').click()});
