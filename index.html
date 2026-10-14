@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doc QA Checker</title>
+<style>
+:root{--bg:#f6f6f2;--sf:#fff;--tx:#1b1e23;--mu:#5b626d;--ln:#d8dad4;--ac:#1d4ed8;--ok:#14663a;--okb:#dff2e5;--wn:#835400;--wnb:#fcefcf;--er:#a8221a;--erb:#fae1de}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--sf:#1d2025;--tx:#e8eaed;--mu:#9aa1ab;--ln:#32373e;--ac:#8fb0ff;--ok:#7ad9a3;--okb:#15301f;--wn:#f1c76b;--wnb:#35290c;--er:#ff9d95;--erb:#3a1917}}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:800px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}.sub{color:var(--mu);margin:0 0 20px;font-size:.95rem}
+.panel{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:16px;margin-bottom:16px}
+label{display:block;font-weight:600;margin-bottom:6px}
+input[type=text]{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--ln);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit}
+input:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.hint{color:var(--mu);font-size:.85rem;margin:4px 0 0}
+.row{display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}
+button{padding:10px 18px;border:0;border-radius:6px;background:var(--ac);color:var(--bg);font:inherit;font-weight:700;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+.sum{font-weight:600;margin:0 0 12px}
+.chk{border:1px solid var(--ln);border-left-width:6px;border-radius:6px;padding:12px 14px;margin-bottom:10px;background:var(--sf)}
+.chk.OK{border-left-color:var(--ok)}.chk.CHECK{border-left-color:var(--wn)}.chk.ERROR{border-left-color:var(--er)}
+.chk h3{margin:0 0 4px;font-size:1rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bd{font-size:.78rem;padding:1px 8px;border-radius:99px;font-weight:700}
+.OK .bd{background:var(--okb);color:var(--ok)}.CHECK .bd{background:var(--wnb);color:var(--wn)}.ERROR .bd{background:var(--erb);color:var(--er)}
+.chk p{margin:2px 0;font-size:.93rem;overflow-wrap:anywhere}
+.tw{overflow-x:auto;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:.88rem;min-width:520px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--ln);vertical-align:top}
+.bad{color:var(--er);font-weight:600}
+.pg{color:var(--mu);font-size:.85rem;margin:4px 0 0 12px}
+</style></head><body><main>
+<h1>Doc QA Checker</h1>
+<p class="sub">Doc ka link paste karein, check apne aap chalega.</p>
+<div class="panel">
+  <label for="src">Doc ka link</label>
+  <input id="src" type="text" autocomplete="off" placeholder="https://docs.google.com/document/d/...">
+  <p class="hint">Google Docs, Google Drive, Dropbox ya seedha .docx link. Sharing "Anyone with the link" honi chahiye.</p>
+  <div class="row" style="display:block"><label for="pw">Password (agar laga hai)</label><input id="pw" type="text" autocomplete="off" style="-webkit-text-security:disc"></div>
+  <div class="row"><button id="go" type="button">Check karein</button>
+  <label style="font-weight:400;margin:0"><input id="bio" type="checkbox" checked> Bio link bhi dekho (basic)</label></div>
+</div>
+<div id="out" aria-live="polite"></div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LBL={OK:'OK',CHECK:'Check karein',ERROR:'Error'};
+const card=(st,t,body)=>'<div class="chk '+st+'"><h3><span class="bd">'+LBL[st]+'</span>'+esc(t)+'</h3>'+body+'</div>';
+const para=x=>'<p>'+(/^https?:/.test(x)?'<a href="'+esc(x)+'" target="_blank" rel="noopener">'+esc(x)+'</a>':esc(x))+'</p>';
+function render(j){
+  if(j.error){$('#out').innerHTML=card('ERROR','Check nahi ho saka','<p>'+esc(j.error)+'</p>');return}
+  const all=j.checks.concat(j.bio.map(b=>({st:b.st})));
+  const ne=all.filter(c=>c.st==='ERROR').length,nw=all.filter(c=>c.st==='CHECK').length;
+  let h='<p class="sum">'+esc(j.file)+': '+j.count+' posts check hui. Errors: '+ne+', Warnings: '+nw+'.</p>';
+  j.checks.forEach(c=>{h+=card(c.st,c.title,c.details.map(para).join(''))});
+  j.bio.forEach(b=>{
+    h+=card(b.st,'Bio link par naam',para(b.url)+(b.title?'<p>Page title: '+esc(b.title)+'</p>':'')+'<p>'+esc(b.msg)+'</p>'+b.lines.map(l=>'<p class="pg">'+esc(l)+'</p>').join(''));
+  });
+  h+='<div class="panel"><strong>Post by post</strong><div class="tw"><table><tr><th>Title</th><th>Person</th><th>Names</th></tr>';
+  j.posts.forEach(p=>{h+='<tr><td class="'+(p.exact?'':'bad')+'">'+esc(p.title)+'</td><td>'+esc(p.label)+'</td><td>'+(p.names.length?p.names.map(esc).join(', '):'<span class="bad">none</span>')+'</td></tr>'});
+  $('#out').innerHTML=h+'</table></div></div>';
+}
+$('#go').onclick=async()=>{
+  const src=$('#src').value.trim();
+  if(!src){$('#out').innerHTML=card('ERROR','Link chahiye','<p>Upar doc ka link paste karein.</p>');return}
+  $('#go').disabled=true;$('#out').innerHTML='<p>Check ho raha hai...</p>';
+  try{
+    const r=await fetch('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({src:src,bio:$('#bio').checked,password:$('#pw').value})});
+    render(await r.json());
+  }catch(e){$('#out').innerHTML=card('ERROR','Server se connect nahi hua','<p>Internet check karein aur page dobara try karein.</p>')}
+  $('#go').disabled=false;
+};
+$('#src').addEventListener('keydown',e=>{if(e.key==='Enter')$('#go').click()});
+</script></body></html>
